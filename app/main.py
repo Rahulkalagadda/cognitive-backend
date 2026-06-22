@@ -24,6 +24,19 @@ app = FastAPI(
     description="Cognitive Assessment Platform (CAP) FastAPI Backend Service.",
 )
 
+# ASGI middleware to force request scheme to https behind reverse proxies
+class HTTPSProxyMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            headers = dict(scope.get("headers", []))
+            if headers.get(b"x-forwarded-proto") == b"https":
+                scope["scheme"] = "https"
+        await self.app(scope, receive, send)
+
+
 # ---------------------------------------------------------------------------
 # 3. Add middleware
 #
@@ -32,14 +45,11 @@ app = FastAPI(
 # response).
 #
 # Required execution order (outermost → innermost):
-#   LoggingMiddleware → CORSMiddleware → Route handler
+#   HTTPSProxyMiddleware → LoggingMiddleware → CORSMiddleware → Route handler
 #
-# Therefore CORSMiddleware must be added FIRST so that LoggingMiddleware
-# wraps around it and CORSMiddleware can set CORS headers on the response
-# before LoggingMiddleware forwards it to the client.
 # ---------------------------------------------------------------------------
 
-# Added first → will execute SECOND (inner)
+# Added first → will execute THIRD (inner)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -49,9 +59,12 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# Added second → will execute FIRST (outer) — pure ASGI, does not buffer
+# Added second → will execute SECOND (middle) — pure ASGI, does not buffer
 # or re-wrap responses, so CORS headers set by CORSMiddleware are preserved.
 app.add_middleware(LoggingMiddleware)
+
+# Added third → will execute FIRST (outermost) — sets scheme to https so Starlette redirects use https
+app.add_middleware(HTTPSProxyMiddleware)
 
 # Startup diagnostic — printed once when the process starts on Railway.
 print("=" * 60)
