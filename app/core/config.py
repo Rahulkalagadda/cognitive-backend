@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # OTP
     OTP_SECRET_KEY: str
 
+    # Frontend URL
+    FRONTEND_URL: str = "http://localhost:3000"
+
     # CORS
     # Set in Railway as:
     #   BACKEND_CORS_ORIGINS=https://cognitive-function-by-drm.vercel.app

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db, get_current_doctor
+from app.core.config import settings
 from app.models.models import Doctor
 from app.repositories.patient import patient_repo
 from app.schemas.patient import PatientCreate, PatientResponse, PatientUpdate
@@ -48,11 +49,7 @@ async def create_patient(
     
     # Construct complete link for patient assessment start
     # Can reside on local 3000 port by default or be loaded dynamically
-    frontend_host = request.headers.get("referer") or "http://localhost:3000"
-    from urllib.parse import urlparse
-    parsed = urlparse(frontend_host)
-    frontend_host = f"{parsed.scheme}://{parsed.netloc}"
-
+    frontend_host = settings.FRONTEND_URL.rstrip("/")
     raw_assessment_link = f"{frontend_host}/assessment/{raw_token}"
     
     # Map to schema output model
@@ -147,10 +144,7 @@ async def regenerate_assessment_link(
     await db.refresh(patient)
 
     # Build the full assessment link
-    frontend_host = request.headers.get("referer") or "http://localhost:3000"
-    from urllib.parse import urlparse
-    parsed = urlparse(frontend_host)
-    frontend_host = f"{parsed.scheme}://{parsed.netloc}"
+    frontend_host = settings.FRONTEND_URL.rstrip("/")
     raw_assessment_link = f"{frontend_host}/assessment/{raw_token}"
 
     response_data = PatientResponse.from_orm(patient)

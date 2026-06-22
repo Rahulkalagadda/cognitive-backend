@@ -110,7 +110,7 @@ venv.bak/
 # Local configuration files
 .env
 .env.*
-!.env.template
+!.env.example
 
 # Application scratch files
 scratch/
