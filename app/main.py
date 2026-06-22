@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -23,23 +24,60 @@ app = FastAPI(
     description="Cognitive Assessment Platform (CAP) FastAPI Backend Service.",
 )
 
+# ---------------------------------------------------------------------------
 # 3. Add middleware
-app.add_middleware(LoggingMiddleware)
+#
+# Starlette/FastAPI middleware is a stack: the LAST middleware added becomes
+# the OUTERMOST wrapper (first to receive the request, last to touch the
+# response).
+#
+# Required execution order (outermost → innermost):
+#   LoggingMiddleware → CORSMiddleware → Route handler
+#
+# Therefore CORSMiddleware must be added FIRST so that LoggingMiddleware
+# wraps around it and CORSMiddleware can set CORS headers on the response
+# before LoggingMiddleware forwards it to the client.
+# ---------------------------------------------------------------------------
 
-# Enable CORS for frontend clients
+# Added first → will execute SECOND (inner)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+# Added second → will execute FIRST (outer) — pure ASGI, does not buffer
+# or re-wrap responses, so CORS headers set by CORSMiddleware are preserved.
+app.add_middleware(LoggingMiddleware)
+
+# Startup diagnostic — printed once when the process starts on Railway.
+print("=" * 60)
+print(f"BACKEND_CORS_ORIGINS = {settings.BACKEND_CORS_ORIGINS}")
+print("=" * 60)
+
 
 # 4. Standard verification routes
 @app.get("/health", tags=["System"])
 async def health_check():
     """Verify service is active."""
     return {"status": "healthy", "version": settings.VERSION}
+
+
+@app.get("/cors-test", tags=["System"])
+async def cors_test():
+    """
+    Temporary CORS diagnostic endpoint.
+    Call from the browser console:
+      fetch('https://cognitive-backend-production-503e.up.railway.app/cors-test',
+            {credentials: 'include'})
+        .then(r => r.json()).then(console.log)
+    The response must include Access-Control-Allow-Origin matching the
+    Vercel origin, and Access-Control-Allow-Credentials: true.
+    """
+    return {"status": "ok", "cors_origins": settings.BACKEND_CORS_ORIGINS}
 
 
 @app.get("/db-test", tags=["System"])

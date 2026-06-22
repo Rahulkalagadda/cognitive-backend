@@ -1,34 +1,54 @@
 import logging
 import time
-from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.datastructures import MutableHeaders
 
 logger = logging.getLogger("app.api.access")
 
 
-class LoggingMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+class LoggingMiddleware:
+    """
+    Pure ASGI logging middleware.
+
+    Why NOT BaseHTTPMiddleware:
+    BaseHTTPMiddleware wraps the response in a new Response object after
+    calling `call_next`, which discards headers set by inner middleware
+    (e.g. CORSMiddleware's Access-Control-Allow-Origin). This pure ASGI
+    implementation intercepts only the 'http.response.start' ASGI event to
+    read the status code and then forwards every event unmodified, so all
+    headers — including CORS headers — are preserved.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            # Pass through non-HTTP scopes (websocket, lifespan) untouched
+            await self.app(scope, receive, send)
+            return
+
         start_time = time.time()
-        
-        # Log request basic properties
-        method = request.method
-        path = request.url.path
-        client_ip = request.client.host if request.client else "unknown"
-        
+        method = scope.get("method", "")
+        path = scope.get("path", "")
+        client = scope.get("client")
+        client_ip = client[0] if client else "unknown"
+
+        status_code = 0
+
+        async def send_with_logging(message):
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+            await send(message)
+
         try:
-            response = await call_next(request)
-            
-            # Calculate execution duration
+            await self.app(scope, receive, send_with_logging)
             process_time = (time.time() - start_time) * 1000
-            status_code = response.status_code
-            
-            # Standard access log formatting
             logger.info(
                 f"Client: {client_ip} | Request: {method} {path} | "
                 f"Response: {status_code} | Duration: {process_time:.2f}ms"
             )
-            return response
-            
         except Exception as e:
             process_time = (time.time() - start_time) * 1000
             logger.error(
