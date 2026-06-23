@@ -76,3 +76,55 @@ def test_scoring_go_no_go():
     # commissions weight: (100 - 30) * 0.3 = 21
     # Total expected: 56 + 21 = 77
     assert score == 77
+
+
+def test_scoring_nested_raw_metrics():
+    """Verify that calculate_attempt_score parses optimalMoves, primaryAccuracy,
+    secondaryAccuracy, and difficultyLevel correctly from nested rawMetrics first."""
+    # Tower Puzzle: nested optimalMoves (15) takes precedence over outer optimalMoves (5)
+    attempt_tower = TaskAttempt(
+        task_id=TaskId.TOWER_PUZZLE,
+        domain=CognitiveDomain.REASONING,
+        correct_responses=15,  # moves taken
+        reaction_time_ms=10000,
+        raw_metrics={"optimalMoves": 5, "rawMetrics": {"optimalMoves": 15}}
+    )
+    score_tower = scoring_service.calculate_attempt_score(attempt_tower)
+    # If nested is checked first, optimalMoves is 15. Correct responses is 15. No extra moves.
+    # Score should be 100.
+    assert score_tower == 100
+
+    # Divided Attention: nested accuracies take precedence over outer values
+    attempt_div = TaskAttempt(
+        task_id=TaskId.DIVIDED_ATTENTION,
+        domain=CognitiveDomain.ATTENTION,
+        accuracy=50.0,
+        raw_metrics={
+            "primaryAccuracy": 50.0,
+            "secondaryAccuracy": 50.0,
+            "rawMetrics": {
+                "primaryAccuracy": 90.0,
+                "secondaryAccuracy": 70.0
+            }
+        }
+    )
+    score_div = scoring_service.calculate_attempt_score(attempt_div)
+    # (90 + 70) / 2 = 80
+    assert score_div == 80
+
+    # Updating: nested difficulty level takes precedence
+    attempt_updating = TaskAttempt(
+        task_id=TaskId.UPDATING,
+        domain=CognitiveDomain.MEMORY,
+        accuracy=80.0,
+        raw_metrics={
+            "difficultyLevel": 1,
+            "rawMetrics": {
+                "difficultyLevel": 3
+            }
+        }
+    )
+    score_updating = scoring_service.calculate_attempt_score(attempt_updating)
+    # accuracy * (0.7 + level * 0.1) = 80 * (0.7 + 0.3) = 80 * 1.0 = 80
+    assert score_updating == 80
+

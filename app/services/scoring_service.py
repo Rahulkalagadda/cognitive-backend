@@ -1,9 +1,20 @@
 import logging
-from typing import Optional
+from typing import Optional, Any
 from app.models.enums import TaskId
 from app.models.models import TaskAttempt
 
 logger = logging.getLogger(__name__)
+
+
+def _get_raw_metric(raw: dict, key: str) -> Optional[Any]:
+    if not raw:
+        return None
+    nested = raw.get("rawMetrics")
+    if isinstance(nested, dict) and key in nested:
+        return nested[key]
+    if key in raw:
+        return raw[key]
+    return None
 
 
 class ScoringService:
@@ -48,9 +59,10 @@ class ScoringService:
             elif task_id == TaskId.TOWER_PUZZLE:
                 # Tower Puzzle (Reasoning / Executive Planning):
                 # Compares moves taken against target optimal moves in config
-                optimal_moves = 5
-                if attempt.raw_metrics and isinstance(attempt.raw_metrics, dict):
-                    optimal_moves = attempt.raw_metrics.get("optimalMoves", 5)
+                raw = attempt.raw_metrics or {}
+                optimal_moves = _get_raw_metric(raw, "optimalMoves")
+                if optimal_moves is None:
+                    optimal_moves = 5
                 
                 actual_moves = correct  # correct responses represents moves taken in the puzzle
                 if actual_moves == 0:
@@ -95,15 +107,18 @@ class ScoringService:
                 # Divided Attention (Attention): average of primary and secondary accuracy
                 # Both are stored in raw_metrics; fall back to overall accuracy if absent.
                 raw = attempt.raw_metrics or {}
-                primary   = float(raw.get("primaryAccuracy",   accuracy))
-                secondary = float(raw.get("secondaryAccuracy", accuracy))
+                primary_val = _get_raw_metric(raw, "primaryAccuracy")
+                secondary_val = _get_raw_metric(raw, "secondaryAccuracy")
+                primary = float(primary_val) if primary_val is not None else accuracy
+                secondary = float(secondary_val) if secondary_val is not None else accuracy
                 computed_score = int((primary + secondary) / 2)
 
             elif task_id == TaskId.UPDATING:
                 # Updating (Memory): accuracy weighted by highest difficulty level reached.
                 # Higher N-Back levels are rewarded with a multiplier (cap at 100).
                 raw   = attempt.raw_metrics or {}
-                level = int(raw.get("difficultyLevel", 1))
+                level_val = _get_raw_metric(raw, "difficultyLevel")
+                level = int(level_val) if level_val is not None else 1
                 computed_score = min(100, int(accuracy * (0.7 + level * 0.1)))
 
             elif task_id == TaskId.N_BACK:
