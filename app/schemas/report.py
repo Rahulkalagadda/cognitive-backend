@@ -32,6 +32,11 @@ class ReportResponse(BaseModel):
     phq9_score: Optional[int] = None
     gad7_score: Optional[int] = None
     pss10_score: Optional[int] = None
+    araq_score: Optional[int] = None
+    araq_sec_a_score: Optional[int] = None
+    araq_sec_b_score: Optional[int] = None
+    araq_sec_c_score: Optional[int] = None
+    araq_sec_d_score: Optional[int] = None
     recommendations: List[str] = Field(default_factory=list)
     system_version: str
     language: LanguageCode

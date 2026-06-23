@@ -44,6 +44,7 @@ class QuestionnaireSlug(str, Enum):
     PHQ_9 = "phq-9"
     GAD_7 = "gad-7"
     PSS_10 = "pss-10"
+    ARAQ = "araq"
 
 
 class ScoreStatus(str, Enum):

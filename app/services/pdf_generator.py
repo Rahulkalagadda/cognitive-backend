@@ -212,7 +212,8 @@ class CircleGauge(Flowable):
         x1, y1 = cx - r, cy - r
         x2, y2 = cx + r, cy + r
         extent = -360 * (self.score / 100.0)
-        self.canv.arc(x1, y1, x2, y2, 90, extent)
+        if abs(extent) > 0.001:
+            self.canv.arc(x1, y1, x2, y2, 90, extent)
         
         self.canv.restoreState()
         
@@ -1013,7 +1014,7 @@ class PDFGenerator:
         story.append(recs_table)
         
         # 7. Optional Clinical Screening Scales (PHQ-9, GAD-7, PSS-10)
-        has_questionnaire = any(x is not None for x in [report.phq9_score, report.gad7_score, report.pss10_score])
+        has_questionnaire = any(x is not None for x in [report.phq9_score, report.gad7_score, report.pss10_score, getattr(report, 'araq_score', None)])
         if has_questionnaire:
             story.append(Spacer(1, 10))
             story.append(Paragraph("Clinical Screening Scales", styles["SectionHeading"]))
@@ -1068,6 +1069,85 @@ class PDFGenerator:
                     Paragraph("PSS-10 (Perceived Stress Scale)", styles["TableVal"]),
                     Paragraph(f"<b>{val}</b> / 40", styles["TableVal"]),
                     Paragraph(f"<font color='{t_col}'><b>{interp}</b></font>", styles["TableVal"]),
+                ])
+
+            if getattr(report, 'araq_score', None) is not None:
+                val = report.araq_score
+                
+                def get_sec_severity(score: int, section: str) -> str:
+                    if section == "A":
+                        if score >= 25: return "Severe"
+                        if score >= 17: return "Moderate"
+                        if score >= 9: return "Mild"
+                        return "Minimal"
+                    elif section == "B":
+                        if score >= 19: return "Severe"
+                        if score >= 13: return "Moderate"
+                        if score >= 7: return "Mild"
+                        return "Minimal"
+                    elif section == "C":
+                        if score >= 25: return "Severe"
+                        if score >= 17: return "Moderate"
+                        if score >= 9: return "Mild"
+                        return "Minimal"
+                    elif section == "D":
+                        if score >= 13: return "Severe"
+                        if score >= 9: return "Moderate"
+                        if score >= 5: return "Mild"
+                        return "Minimal"
+                    return "Minimal"
+                
+                sec_a = report.araq_sec_a_score or 0
+                sec_b = report.araq_sec_b_score or 0
+                sec_c = report.araq_sec_c_score or 0
+                sec_d = report.araq_sec_d_score or 0
+                
+                sec_a_interp = get_sec_severity(sec_a, "A")
+                sec_b_interp = get_sec_severity(sec_b, "B")
+                sec_c_interp = get_sec_severity(sec_c, "C")
+                sec_d_interp = get_sec_severity(sec_d, "D")
+                
+                # Clinical interpretation based on section profiles
+                high_a = sec_a >= 17
+                high_b = sec_b >= 13
+                high_c = sec_c >= 17
+                
+                if high_a and high_b and high_c:
+                    overall_interp = "Mixed ADHD + Anxiety Type"
+                    t_col = "#dc2626"
+                elif high_a and not high_b and not high_c:
+                    overall_interp = "Predominant ADHD-Type Executive Dysfunction"
+                    t_col = "#d97706"
+                elif high_b and not high_a:
+                    overall_interp = "Predominant Anticipatory Anxiety"
+                    t_col = "#d97706"
+                elif high_c and not high_a and not high_b:
+                    overall_interp = "Predominant Fear of Failure / Perfectionism"
+                    t_col = "#d97706"
+                else:
+                    parts = []
+                    if high_a: parts.append("Executive Dysfunction")
+                    if high_b: parts.append("Anticipatory Anxiety")
+                    if high_c: parts.append("Fear of Failure")
+                    if parts:
+                        overall_interp = "Elevated " + " & ".join(parts)
+                        t_col = "#d97706"
+                    else:
+                        overall_interp = "Minimal / Subclinical Avoidance & Anxiety"
+                        t_col = "#0f766e"
+                
+                interpretation_html = (
+                    f"<font color='{t_col}'><b>{overall_interp}</b></font><br/>"
+                    f"• Executive Dysfunction: {sec_a}/32 ({sec_a_interp})<br/>"
+                    f"• Anticipatory Anxiety: {sec_b}/24 ({sec_b_interp})<br/>"
+                    f"• Fear of Failure: {sec_c}/32 ({sec_c_interp})<br/>"
+                    f"• Functional Impact: {sec_d}/16 ({sec_d_interp})"
+                )
+                
+                q_rows.append([
+                    Paragraph("ARAQ (ADHD-Related Avoidance & Anxiety)", styles["TableVal"]),
+                    Paragraph(f"<b>{val}</b> / 104", styles["TableVal"]),
+                    Paragraph(interpretation_html, styles["TableVal"]),
                 ])
                 
             q_table = Table(q_rows, colWidths=[200, 100, 204])

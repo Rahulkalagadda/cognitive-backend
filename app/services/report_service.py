@@ -84,6 +84,11 @@ class ReportService:
         phq9_val: Optional[int] = None
         gad7_val: Optional[int] = None
         pss10_val: Optional[int] = None
+        araq_val: Optional[int] = None
+        araq_sec_a_val: Optional[int] = None
+        araq_sec_b_val: Optional[int] = None
+        araq_sec_c_val: Optional[int] = None
+        araq_sec_d_val: Optional[int] = None
 
         for qr in q_responses:
             if qr.slug == QuestionnaireSlug.PHQ_9:
@@ -92,6 +97,15 @@ class ReportService:
                 gad7_val = qr.total_score
             elif qr.slug == QuestionnaireSlug.PSS_10:
                 pss10_val = qr.total_score
+            elif qr.slug == QuestionnaireSlug.ARAQ:
+                araq_val = qr.total_score
+                answers = qr.answers or {}
+                # Calculate sub-section scores: Section A (1-8), Section B (9-14), Section C (15-22), Section D (23-26)
+                # Note: items are stored with keys q1 to q26
+                araq_sec_a_val = sum(int(answers.get(f"q{i}", 0)) for i in range(1, 9))
+                araq_sec_b_val = sum(int(answers.get(f"q{i}", 0)) for i in range(9, 15))
+                araq_sec_c_val = sum(int(answers.get(f"q{i}", 0)) for i in range(15, 23))
+                araq_sec_d_val = sum(int(answers.get(f"q{i}", 0)) for i in range(23, 27))
 
         # 4. Calculate domain scores (average computed_score of real attempts per domain)
         domain_scores = {
@@ -186,6 +200,14 @@ class ReportService:
         if gad7_val is not None and gad7_val >= 10:
             recommendations.append(
                 "Moderate-to-severe anxiety symptoms reported. Consider stress reduction therapy and anxiety monitoring."
+            )
+        if araq_sec_a_val is not None and araq_sec_a_val >= 20:
+            recommendations.append(
+                "High ADHD-type Executive Dysfunction reported. Suggest clinical assessment for attention-deficit traits."
+            )
+        if araq_sec_d_val is not None and araq_sec_d_val >= 9:
+            recommendations.append(
+                "Significant functional impairment/avoidance impact detected. Recommend cognitive behavioral coaching for procrastination."
             )
 
         # 5b. Clinical metric-specific recommendations
@@ -311,6 +333,11 @@ class ReportService:
             phq9_score=phq9_val,
             gad7_score=gad7_val,
             pss10_score=pss10_val,
+            araq_score=araq_val,
+            araq_sec_a_score=araq_sec_a_val,
+            araq_sec_b_score=araq_sec_b_val,
+            araq_sec_c_score=araq_sec_c_val,
+            araq_sec_d_score=araq_sec_d_val,
             recommendations=recommendations,
             system_version="2.5.0-LTS",
             language=session.language,
