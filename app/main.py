@@ -84,7 +84,7 @@ async def cors_test():
     """
     Temporary CORS diagnostic endpoint.
     Call from the browser console:
-      fetch('https://cognitive-backend-production-503e.up.railway.app/cors-test',
+      fetch('https://cognitive-backend-production-5211.up.railway.app/cors-test',
             {credentials: 'include'})
         .then(r => r.json()).then(console.log)
     The response must include Access-Control-Allow-Origin matching the

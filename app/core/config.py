@@ -45,15 +45,15 @@ class Settings(BaseSettings):
             # allow_credentials=True + wildcard origin is rejected by browsers.
             return ["https://cognitive-function-by-drm.vercel.app"]
         if isinstance(v, list):
-            return [str(origin).strip() for origin in v if str(origin).strip()]
+            return [str(origin).strip().rstrip("/") for origin in v if str(origin).strip()]
         if isinstance(v, str):
             stripped = v.strip()
             if stripped.startswith("["):
                 # JSON array: '["https://a.com","https://b.com"]'
                 parsed = json.loads(stripped)
-                return [str(o).strip() for o in parsed if str(o).strip()]
+                return [str(o).strip().rstrip("/") for o in parsed if str(o).strip()]
             # Comma-separated: "https://a.com,https://b.com"
-            return [o.strip() for o in stripped.split(",") if o.strip()]
+            return [o.strip().rstrip("/") for o in stripped.split(",") if o.strip()]
         raise ValueError(f"Invalid BACKEND_CORS_ORIGINS value: {v!r}")
 
     model_config = SettingsConfigDict(
