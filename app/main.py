@@ -67,8 +67,42 @@ app.add_middleware(LoggingMiddleware)
 app.add_middleware(HTTPSProxyMiddleware)
 
 # Startup diagnostic — printed once when the process starts on Railway.
+import socket
+from urllib.parse import urlparse
+
 print("=" * 60)
 print(f"BACKEND_CORS_ORIGINS = {settings.BACKEND_CORS_ORIGINS}")
+try:
+    db_url = settings.DATABASE_URL
+    parsed = urlparse(db_url)
+    # Mask username and password
+    netloc = parsed.netloc
+    if "@" in netloc:
+        creds, host_port = netloc.split("@", 1)
+        if ":" in creds:
+            user = creds.split(":")[0]
+            masked_creds = f"{user}:****"
+        else:
+            masked_creds = "****"
+        masked_netloc = f"{masked_creds}@{host_port}"
+    else:
+        masked_netloc = netloc
+    masked_url = parsed._replace(netloc=masked_netloc).geturl()
+    print(f"DATABASE_URL (masked): {masked_url}")
+    print(f"DATABASE HOSTNAME: {parsed.hostname}")
+    print(f"DATABASE PORT: {parsed.port}")
+    
+    # Try resolving hostname
+    if parsed.hostname:
+        try:
+            addrs = socket.getaddrinfo(parsed.hostname, parsed.port or 5432)
+            print("DNS Resolution:")
+            for addr in addrs:
+                print(f"  Family: {addr[0]}, Type: {addr[1]}, Proto: {addr[2]}, Canonname: {addr[3]}, Sockaddr: {addr[4]}")
+        except Exception as dns_err:
+            print(f"DNS Resolution Failed: {dns_err}")
+except Exception as diag_err:
+    print(f"Diagnostic failed: {diag_err}")
 print("=" * 60)
 
 
