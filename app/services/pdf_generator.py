@@ -911,6 +911,9 @@ class PDFGenerator:
                 ("Primary Accuracy", get_task_val("divided-attention", "primaryAccuracy", "%")),
                 ("Secondary Accuracy", get_task_val("divided-attention", "secondaryAccuracy", "%")),
                 ("Interference Score", get_task_val("divided-attention", "interferenceScore", "%")),
+                ("Visual Dual-Task Cost", get_task_val("divided-attention", "dualTaskCostVisual", "%")),
+                ("Auditory Dual-Task Cost", get_task_val("divided-attention", "dualTaskCostAuditory", "%")),
+                ("Reaction Time Variability", get_task_val("divided-attention", "rtVariability", " ms")),
             ]
         )
         

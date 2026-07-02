@@ -170,6 +170,15 @@ class ReportService:
             i_score = _get_raw_metric(raw, "interferenceScore")
             if task == "divided-attention" and i_score is not None:
                 clinical_metrics["interferenceScore"] = float(i_score)
+                dual_vis = _get_raw_metric(raw, "dualTaskCostVisual")
+                if dual_vis is not None:
+                    clinical_metrics["dualTaskCostVisual"] = float(dual_vis)
+                dual_aud = _get_raw_metric(raw, "dualTaskCostAuditory")
+                if dual_aud is not None:
+                    clinical_metrics["dualTaskCostAuditory"] = float(dual_aud)
+                rt_var = _get_raw_metric(raw, "rtVariability")
+                if rt_var is not None:
+                    clinical_metrics["rtVariability"] = float(rt_var)
                 
             u_eff = _get_raw_metric(raw, "updatingEfficiency")
             if task == "updating" and u_eff is not None:
@@ -298,6 +307,15 @@ class ReportService:
                 i_score = _get_raw_metric(raw, "interferenceScore")
                 if i_score is not None:
                     task_data["interferenceScore"] = float(i_score)
+                dual_vis = _get_raw_metric(raw, "dualTaskCostVisual")
+                if dual_vis is not None:
+                    task_data["dualTaskCostVisual"] = float(dual_vis)
+                dual_aud = _get_raw_metric(raw, "dualTaskCostAuditory")
+                if dual_aud is not None:
+                    task_data["dualTaskCostAuditory"] = float(dual_aud)
+                rt_var = _get_raw_metric(raw, "rtVariability")
+                if rt_var is not None:
+                    task_data["rtVariability"] = float(rt_var)
                     
             compiled_clinical_metrics[task] = task_data
 

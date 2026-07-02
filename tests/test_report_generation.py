@@ -74,6 +74,25 @@ async def test_generate_report_compiles_clinical_metrics(mock_db):
             raw_metrics={"efficiencyScore": 0.81, "planningTimeMs": 8400.0},
             computed_score=80,
         ),
+        TaskAttempt(
+            task_id=TaskId.DIVIDED_ATTENTION,
+            domain=CognitiveDomain.ATTENTION,
+            is_practice=False,
+            accuracy=88.0,
+            reaction_time_ms=520,
+            correct_responses=25,
+            missed_responses=2,
+            commission_errors=1,
+            raw_metrics={
+                "primaryAccuracy": 88.0,
+                "secondaryAccuracy": 82.0,
+                "interferenceScore": 14.0,
+                "dualTaskCostVisual": -12.0,
+                "dualTaskCostAuditory": -9.0,
+                "rtVariability": 48.0
+            },
+            computed_score=85,
+        ),
     ]
 
     mock_session = AssessmentSession(
@@ -131,6 +150,14 @@ async def test_generate_report_compiles_clinical_metrics(mock_db):
             assert "tower-puzzle" in c_metrics
             assert c_metrics["tower-puzzle"]["efficiencyScore"] == 0.81
             assert c_metrics["tower-puzzle"]["planningTimeMs"] == 8400.0
+            
+            assert "divided-attention" in c_metrics
+            assert c_metrics["divided-attention"]["primaryAccuracy"] == 88.0
+            assert c_metrics["divided-attention"]["secondaryAccuracy"] == 82.0
+            assert c_metrics["divided-attention"]["interferenceScore"] == 14.0
+            assert c_metrics["divided-attention"]["dualTaskCostVisual"] == -12.0
+            assert c_metrics["divided-attention"]["dualTaskCostAuditory"] == -9.0
+            assert c_metrics["divided-attention"]["rtVariability"] == 48.0
             
             # Verify updating recommendation was triggered (updatingEfficiency 0.58 < 0.6)
             assert any("Reduced updating efficiency detected" in rec for rec in report.recommendations)
